@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>40Hz Gamma Wave Music Player</title>
+<style>
+  :root {
+    --bg: #f4f6f8;
+    --card: #ffffff;
+    --ink: #111418;
+    --muted: #5a6472;
+    --accent: #0b6bcb;
+    --accent-dark: #08529c;
+    --danger: #c0392b;
+    --border: #d7dce3;
+    --good: #1e7d46;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 24px 18px 60px; }
+  header { text-align: center; margin-bottom: 22px; }
+  header h1 { font-size: 30px; margin: 0 0 6px; letter-spacing: 1px; }
+  header .sub { color: var(--muted); font-size: 16px; }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 22px 22px 26px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 10px rgba(20,30,50,.05);
+  }
+  .card h2 { font-size: 20px; margin: 0 0 16px; }
+
+  /* File picker */
+  .dropzone {
+    border: 3px dashed var(--accent);
+    border-radius: 14px;
+    padding: 28px 16px;
+    text-align: center;
+    cursor: pointer;
+    background: #eef5fc;
+    transition: background .15s;
+  }
+  .dropzone.drag { background: #dcebfb; }
+  .dropzone .big { font-size: 20px; font-weight: 700; color: var(--accent-dark); }
+  .dropzone .small { color: var(--muted); margin-top: 4px; }
+  .fileinfo { margin-top: 14px; font-size: 16px; color: var(--muted); display: none; }
+  .fileinfo .name { font-weight: 700; color: var(--ink); word-break: break-all; }
+
+  /* Playback buttons */
+  .controls { display: flex; gap: 14px; flex-wrap: wrap; }
+  .btn {
+    flex: 1 1 auto;
+    min-width: 120px;
+    font-size: 22px;
+    font-weight: 700;
+    padding: 18px 10px;
+    border: none;
+    border-radius: 14px;
+    cursor: pointer;
+    color: #fff;
+    background: var(--accent);
+    letter-spacing: 1px;
+    transition: transform .06s, background .15s;
+  }
+  .btn:hover { background: var(--accent-dark); }
+  .btn:active { transform: scale(.97); }
+  .btn:disabled { background: #b8c0ca; cursor: not-allowed; }
+  .btn.stop { background: var(--danger); }
+  .btn.stop:hover { background: #a32c20; }
+  .btn.pause { background: #8a5a12; }
+  .btn.pause:hover { background: #6f4710; }
+
+  /* Toggle switch */
+  .switchrow {
+    display: flex; align-items: center; justify-content: space-between;
+    background: #f0f7f1; border: 1px solid #cde3d3; border-radius: 12px;
+    padding: 14px 18px; margin-bottom: 18px;
+  }
+  .switchrow .label { font-size: 19px; font-weight: 700; }
+  .switchrow .hint { font-size: 14px; color: var(--muted); }
+  .switch { position: relative; width: 68px; height: 36px; flex: none; }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .slider-bg {
+    position: absolute; inset: 0; border-radius: 36px; background: #b9c2cc;
+    cursor: pointer; transition: background .2s;
+  }
+  .slider-bg::before {
+    content: ""; position: absolute; width: 28px; height: 28px; left: 4px; top: 4px;
+    background: #fff; border-radius: 50%; transition: transform .2s;
+  }
+  .switch input:checked + .slider-bg { background: var(--good); }
+  .switch input:checked + .slider-bg::before { transform: translateX(32px); }
+
+  /* Sliders */
+  .slider-row { margin-bottom: 20px; }
+  .slider-row .top { display: flex; justify-content: space-between; font-size: 17px; margin-bottom: 6px; }
+  .slider-row .val { font-weight: 700; color: var(--accent-dark); }
+  input[type=range] { width: 100%; height: 30px; accent-color: var(--accent); cursor: pointer; }
+  .hint40 { font-size: 14px; color: var(--muted); margin-top: -10px; margin-bottom: 10px; }
+
+  .status {
+    text-align: center; font-size: 18px; font-weight: 700;
+    padding: 12px; border-radius: 12px; background: #eef1f5; color: var(--muted);
+  }
+  .status.on { background: #e7f6ec; color: var(--good); }
+
+  footer { margin-top: 26px; font-size: 14px; color: var(--muted); text-align: center; }
+  footer .warn { color: var(--danger); font-weight: 700; }
+  .badge { display:inline-block; background: var(--accent); color:#fff; border-radius:20px; padding:2px 12px; font-size:14px; margin-left:6px; }
+  .signature { margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--border); font-size: 15px; }
+  .signature .name { font-weight: 700; color: var(--ink); font-size: 17px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>40Hz Gamma Wave Music Player</h1>
+    <div class="sub">For Alzheimer's cognitive stimulation · music pulses 40 times per second</div>
+  </header>
+
+  <!-- 1. Choose music -->
+  <div class="card">
+    <h2>1. Choose a Music File</h2>
+    <div class="dropzone" id="dropzone">
+      <div class="big">Click to choose a music file</div>
+      <div class="small">Supports MP3 / WAV / M4A / OGG — you can also drag &amp; drop a file here</div>
+    </div>
+    <input type="file" id="fileInput" accept="audio/*" hidden>
+    <div class="fileinfo" id="fileinfo">
+      Loaded: <span class="name" id="filename"></span><br>
+      Duration: <span id="duration"></span>
+    </div>
+  </div>
+
+  <!-- 2. Playback -->
+  <div class="card">
+    <h2>2. Playback</h2>
+    <div class="controls">
+      <button class="btn" id="btnPlay" disabled>&#9654; Play</button>
+      <button class="btn pause" id="btnPause" disabled>&#10074;&#10074; Pause</button>
+      <button class="btn stop" id="btnStop" disabled>&#9632; Stop</button>
+    </div>
+    <div class="status" id="status">Please choose a music file first</div>
+  </div>
+
+  <!-- 3. 40Hz settings -->
+  <div class="card">
+    <h2>3. 40Hz Modulation Settings</h2>
+
+    <div class="switchrow">
+      <div>
+        <div class="label">40Hz Gamma Modulation <span class="badge">Core</span></div>
+        <div class="hint">Volume pulses 40 times per second for auditory gamma entrainment</div>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="modOn" checked>
+        <span class="slider-bg"></span>
+      </label>
+    </div>
+
+    <div class="slider-row">
+      <div class="top"><span>Modulation Frequency</span><span class="val" id="freqVal">40 Hz</span></div>
+      <input type="range" id="freq" min="20" max="100" step="1" value="40">
+      <div class="hint40">Keep at 40 Hz (the research-validated gamma band)</div>
+    </div>
+
+    <div class="slider-row">
+      <div class="top"><span>Modulation Depth (pulse strength)</span><span class="val" id="depthVal">50%</span></div>
+      <input type="range" id="depth" min="0" max="100" step="5" value="50">
+      <div class="hint40">Start at 30–50%, increase gradually once comfortable</div>
+    </div>
+
+    <div class="slider-row">
+      <div class="top"><span>Volume</span><span class="val" id="volVal">60%</span></div>
+      <input type="range" id="volume" min="0" max="100" step="5" value="60">
+    </div>
+
+    <label style="font-size:17px; user-select:none;">
+      <input type="checkbox" id="loop" checked style="width:20px;height:20px;vertical-align:-4px;accent-color:var(--accent);">
+      Loop playback (for continuous 40Hz stimulation)
+    </label>
+  </div>
+
+  <footer>
+    <div class="warn">&#9888; This tool is intended for relaxation and cognitive stimulation, based on the
+    40Hz auditory gamma entrainment method that is still under research (MIT GENUS, etc.).
+    It is not a medical device and cannot replace diagnosis or treatment by a doctor.
+    Please consult a physician before use, and keep the volume comfortable — not too loud.</div>
+    <div style="margin-top:8px;">Reference: Gamma entrainment using sensory stimuli (GENUS), Tsai Lab, MIT</div>
+
+    <div class="signature">
+      Developed by <span class="name">Xinyi Wang</span><br>
+      &copy; 2026 Xinyi Wang. All rights reserved.
+    </div>
+  </footer>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var audioContext = null;
+  var audioBuffer = null;
+  var sourceNode = null;
+  var carrierGain = null;
+  var lfo = null;
+  var lfoGain = null;
+  var compressor = null;
+
+  var isPlaying = false;
+  var startTime = 0;      // baseline in context.currentTime
+  var pauseOffset = 0;    // seconds already played into the buffer
+
+  var el = function (id) { return document.getElementById(id); };
+  var dropzone = el("dropzone");
+  var fileInput = el("fileInput");
+
+  function getParams() {
+    return {
+      modOn: el("modOn").checked,
+      freq: parseFloat(el("freq").value),
+      depth: parseFloat(el("depth").value) / 100,
+      volume: parseFloat(el("volume").value) / 100,
+      loop: el("loop").checked
+    };
+  }
+
+  function ensureContext() {
+    if (!audioContext) {
+      var AC = window.AudioContext || window.webkitAudioContext;
+      audioContext = new AC();
+    }
+    if (audioContext.state === "suspended") {
+      audioContext.resume();
+    }
+    return audioContext;
+  }
+
+  // File selection / drag & drop
+  dropzone.addEventListener("click", function () { fileInput.click(); });
+  fileInput.addEventListener("change", function () {
+    if (fileInput.files.length) loadFile(fileInput.files[0]);
+  });
+  ["dragover", "dragenter"].forEach(function (ev) {
+    dropzone.addEventListener(ev, function (e) {
+      e.preventDefault(); dropzone.classList.add("drag");
+    });
+  });
+  ["dragleave", "drop"].forEach(function (ev) {
+    dropzone.addEventListener(ev, function (e) {
+      e.preventDefault(); dropzone.classList.remove("drag");
+    });
+  });
+  dropzone.addEventListener("drop", function (e) {
+    if (e.dataTransfer.files.length) loadFile(e.dataTransfer.files[0]);
+  });
+
+  function loadFile(file) {
+    ensureContext();
+    var fr = new FileReader();
+    fr.onload = function () {
+      audioContext.decodeAudioData(fr.result, function (buf) {
+        stopPlayback();
+        audioBuffer = buf;
+        pauseOffset = 0;
+        el("filename").textContent = file.name;
+        el("duration").textContent = formatTime(buf.duration);
+        el("fileinfo").style.display = "block";
+        el("btnPlay").disabled = false;
+        el("btnPause").disabled = false;
+        el("btnStop").disabled = false;
+        setStatus("Music ready — click Play to start 40Hz stimulation");
+      }, function () {
+        setStatus("Could not decode this audio file — please try another MP3/WAV");
+      });
+    };
+    fr.readAsArrayBuffer(file);
+  }
+
+  function formatTime(s) {
+    var m = Math.floor(s / 60);
+    var sec = Math.round(s % 60);
+    return m + " min " + sec + " sec";
+  }
+
+  function buildGraph() {
+    sourceNode = audioContext.createBufferSource();
+    sourceNode.buffer = audioBuffer;
+    sourceNode.loop = getParams().loop;
+
+    carrierGain = audioContext.createGain();
+    compressor = audioContext.createDynamicsCompressor();
+    compressor.threshold.value = -18;
+    compressor.ratio.value = 6;
+
+    lfo = audioContext.createOscillator();
+    lfo.type = "sine";
+    lfo.frequency.value = getParams().freq;
+
+    lfoGain = audioContext.createGain();
+    lfoGain.gain.value = 0;
+
+    sourceNode.connect(carrierGain);
+    carrierGain.connect(compressor);
+    compressor.connect(audioContext.destination);
+
+    lfo.connect(lfoGain);
+    lfoGain.connect(carrierGain.gain);
+
+    sourceNode.onended = function () {
+      // Natural end when not looping
+      if (!getParams().loop) {
+        isPlaying = false;
+        pauseOffset = 0;
+        el("btnPlay").disabled = false;
+        setStatus("Playback finished");
+      }
+    };
+
+    applyModulation();
+  }
+
+  function applyModulation() {
+    if (!carrierGain || !lfoGain || !lfo) return;
+    var p = getParams();
+    var m = p.modOn ? p.depth : 0;   // modulation depth (0 = off)
+    var base = p.volume;             // carrier volume
+    var t = audioContext.currentTime;
+    carrierGain.gain.cancelScheduledValues(t);
+    carrierGain.gain.setTargetAtTime(base, t, 0.02);
+    lfoGain.gain.cancelScheduledValues(t);
+    lfoGain.gain.setTargetAtTime(base * m, t, 0.02);
+    lfo.frequency.setTargetAtTime(p.freq, t, 0.02);
+  }
+
+  function play() {
+    if (isPlaying || !audioBuffer) return;
+    ensureContext();
+    buildGraph();
+    sourceNode.start(0, pauseOffset);
+    lfo.start(0);
+    startTime = audioContext.currentTime - pauseOffset;
+    isPlaying = true;
+    el("btnPlay").disabled = true;
+    setStatus("Playing · 40Hz modulation " + (getParams().modOn ? "ON" : "OFF"));
+  }
+
+  function pause() {
+    if (!isPlaying) return;
+    pauseOffset = audioContext.currentTime - startTime;
+    sourceNode.stop();
+    lfo.stop();
+    isPlaying = false;
+    el("btnPlay").disabled = false;
+    setStatus("Paused");
+  }
+
+  function stopPlayback() {
+    if (sourceNode) { try { sourceNode.stop(); } catch (e) {} }
+    if (lfo) { try { lfo.stop(); } catch (e) {} }
+    sourceNode = null; lfo = null; carrierGain = null; lfoGain = null;
+    isPlaying = false;
+    pauseOffset = 0;
+    el("btnPlay").disabled = !audioBuffer;
+  }
+
+  function setStatus(msg) {
+    var s = el("status");
+    s.textContent = msg;
+    s.classList.toggle("on", isPlaying);
+  }
+
+  el("btnPlay").addEventListener("click", play);
+  el("btnPause").addEventListener("click", pause);
+  el("btnStop").addEventListener("click", function () {
+    stopPlayback();
+    setStatus("Stopped");
+  });
+
+  // Sliders: live display + apply
+  el("freq").addEventListener("input", function () {
+    el("freqVal").textContent = this.value + " Hz";
+    applyModulation();
+  });
+  el("depth").addEventListener("input", function () {
+    el("depthVal").textContent = this.value + "%";
+    applyModulation();
+  });
+  el("volume").addEventListener("input", function () {
+    el("volVal").textContent = this.value + "%";
+    applyModulation();
+  });
+  el("modOn").addEventListener("change", function () {
+    applyModulation();
+    if (isPlaying) setStatus("Playing · 40Hz modulation " + (this.checked ? "ON" : "OFF"));
+  });
+  el("loop").addEventListener("change", function () {
+    if (sourceNode) sourceNode.loop = this.checked;
+  });
+
+  setStatus("Please choose a music file first");
+})();
+</script>
+</body>
+</html>

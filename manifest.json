@@ -1,0 +1,16 @@
+{
+  "name": "40Hz 伽马波音乐播放器",
+  "short_name": "40Hz播放器",
+  "description": "让音乐音量以每秒 40 次的节奏轻轻起伏，用于放松与认知刺激",
+  "lang": "zh-CN",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f4f6f8",
+  "theme_color": "#0b6bcb",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}
